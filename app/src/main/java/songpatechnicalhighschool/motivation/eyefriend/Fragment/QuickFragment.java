@@ -52,6 +52,20 @@ public class QuickFragment extends Fragment {
     final String TAG = "QuickFragment";
     final String OPEN_WEATHER_MAP_KEY = "704a83a5f8f3436366adba0f15c18d38";
     final String emergencyTell = "tel:119";
+
+    final byte[] onUltrasonic = {'1'};
+    final byte[] offUltrasonic = {'2'};
+    final byte[] onPIR = {'3'};
+    final byte[] offPIR = {'4'};
+    final byte[] onSOS = {'5'};
+    final byte[] offSOS = {'6'};
+
+    boolean ultrasonicState = true;
+    boolean pirState = true;
+    boolean sosState = true;
+    boolean exitState = true;
+
+
     WeatherService weatherService;
     LocationManager lm;
     double longitude;
@@ -60,17 +74,20 @@ public class QuickFragment extends Fragment {
 
     private RFduinoService rfduinoService;
 
-
     private static final int REQUEST_CODE_LOCATION = 2;
-    Button micButton;
-    Button kitButton;
+
+    Button voiceButton;
+    Button ultrasonicButton;
     Button emergencyButton;
-    Button callButton;
+    Button onSOSButton;
+    Button pirButton;
+
     Intent intent;
     SpeechRecognizer speechRecognizer;
     TextToSpeech tts;
     String speakingValue;
     RetrofitClient retrofitClient;
+    private Button onEmergencyButton;
 
     public QuickFragment() {
         // Required empty public constructor
@@ -150,9 +167,8 @@ public class QuickFragment extends Fragment {
         speechRecognizer.setRecognitionListener(listener);
         retrofitClient = new RetrofitClient(OPEN_WEATHER_MAP_KEY);
 
-        if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED){
-
-        }
+        Intent rfduinoIntent = new Intent(getContext(), RFduinoService.class);
+        getContext().bindService(rfduinoIntent, rfduinoServiceConnection, BIND_AUTO_CREATE);
 
         lm = (LocationManager) getActivity().getSystemService(Context.LOCATION_SERVICE);
         if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION)
@@ -168,8 +184,12 @@ public class QuickFragment extends Fragment {
             }
         });
 
-        micButton = view.findViewById(R.id.quick_voice);
-        micButton.setOnClickListener(v -> {
+        pirButton = view.findViewById(R.id.quick_pir);
+        pirButton.setOnClickListener(v -> onPIR());
+
+        //Voice
+        voiceButton = view.findViewById(R.id.quick_voice);
+        voiceButton.setOnClickListener(v -> {
             if (ContextCompat.checkSelfPermission(getContext(), Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.RECORD_AUDIO}, 100);
             } else {
@@ -181,22 +201,27 @@ public class QuickFragment extends Fragment {
             }
         });
 
-        kitButton = view.findViewById(R.id.quick_on_kit);
-        kitButton.setOnClickListener(v -> onKit());
-
+        //119
         emergencyButton = view.findViewById(R.id.quick_emergency);
-        emergencyButton.setOnClickListener(v -> startActivity(new Intent("android.intent.action.CALL", Uri.parse(emergencyTell))));
+        emergencyButton.setOnClickListener(v -> startActivity(new Intent("android.intent.action.CALL", Uri.parse(emergencyTell))));;
 
-        callButton = view.findViewById(R.id.quick_call);
-        callButton.setOnClickListener(v -> startActivity(new Intent("android.intent.action.CALL", Uri.parse("tel:010-2269-1061"))));
+        //Ultrasonic
+        ultrasonicButton = view.findViewById(R.id.quick_ultrasonic);
+        ultrasonicButton.setOnClickListener(v -> onUltrasonic());
+
+        //SOS
+        onSOSButton = view.findViewById(R.id.quick_sos);
+        onSOSButton.setOnClickListener(v -> onSOS());
+
+        //Emergency
+        onEmergencyButton = view.findViewById(R.id.quick_emergency);
+        onEmergencyButton.setOnClickListener(v->onEmergencyCall());
+
+        //Exit
+        onEmergencyButton = view.findViewById(R.id.quick_exit);
+        //onEmergencyButton.setOnClickListener();
 
         return view;
-    }
-
-    private void onKit() {
-        Log.d(TAG, "connectButton");
-        Intent rfduinoIntent = new Intent(getContext(), RFduinoService.class);
-        getContext().bindService(rfduinoIntent, rfduinoServiceConnection, BIND_AUTO_CREATE);
     }
 
     private RecognitionListener listener = new RecognitionListener() {
@@ -252,8 +277,10 @@ public class QuickFragment extends Fragment {
             if (speakingValue.equals("오늘 날씨")) {
                 Location location = getLocation();
                 getCurrentWeather(Double.toString(location.getLatitude()), Double.toString(location.getLongitude()));
-            } else if(speakingValue.equals("키트")){
-                onKit();
+            } else if(speakingValue.equals("센서")){
+                onUltrasonic();
+            }else if(speakingValue.equals("센서 종료")) {
+
             }else{
                 Toast.makeText(getContext(), speakingValue, Toast.LENGTH_LONG).show();
             }
@@ -342,24 +369,54 @@ public class QuickFragment extends Fragment {
     private void addData(byte[] data) {
         String value = String.valueOf(data[0]);
         Log.d("AddData", value);
-        checkLedLight(value);
+        getUltrasonicDistance(value);
     }
 
-    private void checkLedLight(String value) {
+    private void getUltrasonicDistance(String value) {
 
-        byte[] on = {1};
-        byte[] off = {0};
         int distance = Integer.parseInt(value);
 
         if(distance != lastDistance) {
             if (distance > 5 && distance < 50) {
-                rfduinoService.send(on);
                 tts.setSpeechRate(0.8f); //1배속으로 읽기
                 tts.speak(value + "cm 앞에 물체가 있습니다.", TextToSpeech.QUEUE_FLUSH, null);
-            } else {
-                rfduinoService.send(off);
             }
         }
         lastDistance = distance;
+    }
+
+    private void onSOS(){
+        if(!sosState) {
+            rfduinoService.send(offSOS);
+            sosState = !sosState;
+        } else {
+            rfduinoService.send(onSOS);
+            sosState = !sosState;
+        }
+    }
+
+    private void onUltrasonic() {
+        Log.d(TAG, "onKit()");
+        if(!ultrasonicState) {
+            rfduinoService.send(offUltrasonic);
+            ultrasonicState = !ultrasonicState;
+        } else {
+            rfduinoService.send(onUltrasonic);
+            ultrasonicState = !ultrasonicState;
+        }
+    }
+
+    private void onPIR(){
+        if(!pirState) {
+            rfduinoService.send(offPIR);
+            pirState = !pirState;
+        } else {
+            rfduinoService.send(onPIR);
+            pirState = !pirState;
+        }
+    }
+
+    private void onEmergencyCall(){
+        startActivity(new Intent("android.intent.action.CALL", Uri.parse("tel:010-2269-1061")));
     }
 }

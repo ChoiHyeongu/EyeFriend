@@ -20,6 +20,7 @@ public class CustomAdapter extends BaseAdapter {
     private List<String> macsArrayList = new ArrayList<String>();
     private String mac;
     private List<String> names = new ArrayList<String>();
+    private List<String> locates = new ArrayList<String>();
     private Context mContext = null;
     private int sz = 0;
 
@@ -30,9 +31,10 @@ public class CustomAdapter extends BaseAdapter {
         mContext = context;
     }
 
-    public void addElement(String mac, String name) {
+    public void addElement(String mac, String name, String locate) {
         macsArrayList.add(mac);
         names.add(name);
+        locates.add(locate);
         sz++;
     }
 
@@ -63,6 +65,7 @@ public class CustomAdapter extends BaseAdapter {
             holder = new ViewHolder();
             holder.itemLayout = convertView.findViewById(R.id.itme_device_layout);
             holder.deviceName = convertView.findViewById(R.id.item_device_name);
+            holder.locateName = convertView.findViewById(R.id.item_device_locate);
 
             holder.itemLayout.setOnClickListener(v -> {
                 mac = getMacs(position);
@@ -75,8 +78,8 @@ public class CustomAdapter extends BaseAdapter {
         } else {
             holder = (ViewHolder) convertView.getTag();
         }
-        holder.deviceName.setText(names.get(position).substring(4));
-
+        holder.deviceName.setText(names.get(position));
+        holder.locateName.setText(locates.get(position));
         return convertView;
     }
 
@@ -86,6 +89,7 @@ public class CustomAdapter extends BaseAdapter {
 
     private class ViewHolder {
         TextView deviceName;
+        TextView locateName;
         LinearLayout itemLayout;
     }
 }

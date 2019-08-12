@@ -41,6 +41,7 @@
         android:layout_gravity="bottom|end"
         app:maxImageSize="40dp"
         android:layout_margin="@dimen/fab_margin"
+        android:visibility="gone"
         app:fabCustomSize="78dp"
         app:srcCompat="@drawable/ic_warning_black_24dp" />
 </android.support.design.widget.CoordinatorLayout>

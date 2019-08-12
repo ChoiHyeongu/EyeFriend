@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/itme_device_layout"
     android:layout_width="match_parent"
+    android:orientation="vertical"
     android:layout_height="wrap_content">
 
     <TextView
@@ -12,5 +13,14 @@
         android:textColor="@android:color/black"
         android:textSize="32sp"
         tools:text="DevcieName" />
+
+    <TextView
+        android:id="@+id/item_device_locate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@android:color/darker_gray"
+        android:textSize="24sp"
+        tools:text="DevcieName" />
+
 
 </LinearLayout>
