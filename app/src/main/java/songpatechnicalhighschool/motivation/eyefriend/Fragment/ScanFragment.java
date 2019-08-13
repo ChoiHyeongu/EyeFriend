@@ -88,9 +88,7 @@ public class ScanFragment extends Fragment {
     }
 
     void isExit(BluetoothDevice device){
-        if(device.getName().substring(4).equals("비상탈출구")){
-            QuickFragment.exitDevice = device;
-        }
+
     }
 
     @Override

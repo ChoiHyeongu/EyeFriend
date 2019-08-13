@@ -28,11 +28,12 @@ import java.util.Collection;
 import java.util.List;
 
 import songpatechnicalhighschool.motivation.eyefriend.Adapter.PageAdapter;
+import songpatechnicalhighschool.motivation.eyefriend.Fragment.QuickFragment;
 import songpatechnicalhighschool.motivation.eyefriend.R;
 
 import static android.Manifest.permission.ACCESS_FINE_LOCATION;
 
-public class MainActivity extends AppCompatActivity implements BeaconConsumer {
+public class MainActivity extends AppCompatActivity {
 
     private static final int MY_PERMISSION_REQUEST_CONSTANT = 1;
 
@@ -63,10 +64,6 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
         arriveSound = MediaPlayer.create(this, R.raw.arrive);
         arriveSound.setLooping(true);
 
-        beaconManager = BeaconManager.getInstanceForApplication(this);
-        beaconManager.getBeaconParsers().add(new BeaconParser().setBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24,d:25-25"));
-        beaconManager.bind(this);
-
         final PageAdapter pageAdapter = new PageAdapter(getSupportFragmentManager(), tabs.getTabCount());
         viewPager.setAdapter(pageAdapter);
         viewPager.addOnPageChangeListener(new TabLayout.TabLayoutOnPageChangeListener(tabs));
@@ -87,95 +84,5 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
             }
         });
 
-        final FloatingActionButton fab = findViewById(R.id.fab);
-
-        fab.setOnClickListener(view -> onFabClicked(view));
-
-        ActivityCompat.requestPermissions(this, new String[]{ACCESS_FINE_LOCATION}, MY_PERMISSION_REQUEST_CONSTANT);
-    }
-
-    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
-        switch (requestCode) {
-            case MY_PERMISSION_REQUEST_CONSTANT: {
-                // If request is cancelled, the result arrays are empty.
-                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    Log.d("STATE", "Permission OK");
-                }
-                return;
-            }
-        }
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        beaconManager.unbind(this);
-        if (mediaPlayer.isPlaying()) {
-            mediaPlayer.stop();
-        }
-        mediaPlayer.release();
-    }
-
-    @Override
-    public void onBeaconServiceConnect() {
-        beaconManager.setRangeNotifier((beacons, region) -> {
-            if (beacons.size() > 0) {
-                beaconList.clear();
-                for (Beacon beacon : beacons) {
-                    beaconList.add(beacon);
-                    if (beacon.getBluetoothName().equals("IF0126363")) {
-                        exitBeacon = beacon;
-                    }
-                    Log.d("BeaconsList", beacon.getBluetoothName());
-                }
-            }
-        });
-
-        try {
-            beaconManager.startRangingBeaconsInRegion(new Region("myRangingUniqueId", null, null, null));
-        } catch (RemoteException e) {
-        }
-    }
-
-    public void onFabClicked(View view) {
-        handler.sendEmptyMessage(0);
-    }
-
-
-    @SuppressLint("HandlerLeak")
-    Handler handler = new Handler() {
-        public void handleMessage(Message msg) {
-            if (exitBeacon != null || exitBeacon.getBluetoothName().equals("IF0126363")) {
-                String text = ("ID : " + exitBeacon.getId2() + " / " + "Distance = " + exitBeacon.getDistance());
-                Log.d("Beacon", text);
-                soundPlay(exitBeacon.getDistance());
-                handler.sendEmptyMessageDelayed(0, 1500);
-            }
-        }
-    };
-
-    void soundPlay(Double distance) {
-
-        Toast.makeText(this, "Distance : " + exitBeacon.getDistance(), Toast.LENGTH_SHORT).show();
-        if (distance < 2) {
-            if (induceSound != null && induceSound.isPlaying()) {
-                induceSound.pause();
-            }
-            arriveSound.start();
-        } else {
-            if (arriveSound != null && arriveSound.isPlaying()) {
-                arriveSound.pause();
-            }
-            speed = (float) (10 / (((distance * distance) / 2) + 5));
-                if (induceSound.isPlaying()) {
-                    induceSound.pause();
-                    induceSound.setPlaybackParams(induceSound.getPlaybackParams().setSpeed(speed));
-                } else {
-                    induceSound.setPlaybackParams(induceSound.getPlaybackParams().setSpeed(speed));
-                }
-                induceSound.start();
-        }
-        Log.d("Beacon", speed + "");
-        Log.d("speed", String.valueOf(speed));
     }
 }

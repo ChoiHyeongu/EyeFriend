@@ -2,6 +2,7 @@ package songpatechnicalhighschool.motivation.eyefriend.Fragment;
 
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
@@ -13,9 +14,13 @@ import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationManager;
+import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Message;
+import android.os.RemoteException;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
@@ -28,11 +33,19 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.gson.JsonObject;
 
+import org.altbeacon.beacon.Beacon;
+import org.altbeacon.beacon.BeaconConsumer;
+import org.altbeacon.beacon.BeaconManager;
+import org.altbeacon.beacon.BeaconParser;
+import org.altbeacon.beacon.Region;
+
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 import retrofit2.Call;
@@ -46,12 +59,24 @@ import songpatechnicalhighschool.motivation.eyefriend.Service.WeatherService;
 
 import static android.content.Context.BIND_AUTO_CREATE;
 
-public class QuickFragment extends Fragment {
+public class QuickFragment extends Fragment implements BeaconConsumer {
 
-    public static BluetoothDevice exitDevice;
+    Beacon exitBeacon;
+
     final String TAG = "QuickFragment";
     final String OPEN_WEATHER_MAP_KEY = "704a83a5f8f3436366adba0f15c18d38";
     final String emergencyTell = "tel:119";
+
+    private static final int MY_PERMISSION_REQUEST_CONSTANT = 1;
+
+    private BeaconManager beaconManager;
+    private List<Beacon> beaconList = new ArrayList<>();
+    private MediaPlayer mediaPlayer;
+    private MediaPlayer arriveSound;
+    private MediaPlayer induceSound;
+    private boolean isAlreadyClicked = false;
+    private boolean isArrived = false;
+    private float speed = 0;
 
     final byte[] onUltrasonic = {'1'};
     final byte[] offUltrasonic = {'2'};
@@ -81,21 +106,43 @@ public class QuickFragment extends Fragment {
     Button emergencyButton;
     Button onSOSButton;
     Button pirButton;
+    Button onExitButton;
 
     Intent intent;
     SpeechRecognizer speechRecognizer;
     TextToSpeech tts;
     String speakingValue;
     RetrofitClient retrofitClient;
-    private Button onEmergencyButton;
 
     public QuickFragment() {
         // Required empty public constructor
     }
 
+    private BroadcastReceiver mReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            // ignore the notification here
+            // and block propagation
+            abortBroadcast();
+        }
+    };
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        beaconManager = BeaconManager.getInstanceForApplication(getActivity());
+        beaconManager.getBeaconParsers().add(new BeaconParser().setBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24,d:25-25"));
+        beaconManager.bind(this);
+
+    }
+
     @Override
     public void onStart() {
         super.onStart();
+        IntentFilter ifi = new IntentFilter("be.hcpl.android.beaconexample.NOTIFY_FOR_BEACON");
+        ifi.setPriority(10);
+        getActivity().registerReceiver(mReceiver, ifi);
         getContext().registerReceiver(bluetoothStateReceiver, new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED));
         getContext().registerReceiver(rfduinoReceiver, RFduinoService.getIntentFilter());
     }
@@ -167,6 +214,11 @@ public class QuickFragment extends Fragment {
         speechRecognizer.setRecognitionListener(listener);
         retrofitClient = new RetrofitClient(OPEN_WEATHER_MAP_KEY);
 
+        induceSound = MediaPlayer.create(getContext(), R.raw.beep);
+        induceSound.setLooping(true);
+        arriveSound = MediaPlayer.create(getContext(), R.raw.arrive);
+        arriveSound.setLooping(true);
+
         Intent rfduinoIntent = new Intent(getContext(), RFduinoService.class);
         getContext().bindService(rfduinoIntent, rfduinoServiceConnection, BIND_AUTO_CREATE);
 
@@ -214,12 +266,12 @@ public class QuickFragment extends Fragment {
         onSOSButton.setOnClickListener(v -> onSOS());
 
         //Emergency
-        onEmergencyButton = view.findViewById(R.id.quick_emergency);
-        onEmergencyButton.setOnClickListener(v->onEmergencyCall());
+        emergencyButton = view.findViewById(R.id.quick_emergency);
+        emergencyButton.setOnClickListener(v->onEmergencyCall());
 
         //Exit
-        onEmergencyButton = view.findViewById(R.id.quick_exit);
-        //onEmergencyButton.setOnClickListener();
+        onExitButton = view.findViewById(R.id.quick_exit);
+        onExitButton.setOnClickListener(v -> handler.sendEmptyMessage(0));
 
         return view;
     }
@@ -343,6 +395,12 @@ public class QuickFragment extends Fragment {
             speechRecognizer.cancel();
             speechRecognizer = null;
         }
+
+        beaconManager.unbind(this);
+        if (mediaPlayer.isPlaying()) {
+            mediaPlayer.stop();
+        }
+        mediaPlayer.release();
     }
 
     private Location getLocation() {
@@ -418,5 +476,81 @@ public class QuickFragment extends Fragment {
 
     private void onEmergencyCall(){
         startActivity(new Intent("android.intent.action.CALL", Uri.parse("tel:010-2269-1061")));
+    }
+
+    //Beacon Connect
+    @SuppressLint("HandlerLeak")
+    Handler handler = new Handler() {
+        public void handleMessage(Message msg) {
+            if(exitBeacon == null){
+                Log.d("Beacon", "NULL");
+            }
+            if (exitBeacon != null || exitBeacon.getBluetoothName().equals("IF0126363")) {
+                String text = ("ID : " + exitBeacon.getId2() + " / " + "Distance = " + exitBeacon.getDistance());
+                Log.d("Beacon", text);
+                soundPlay(exitBeacon.getDistance());
+                handler.sendEmptyMessageDelayed(0, 1500);
+            }
+        }
+    };
+
+    void soundPlay(Double distance) {
+        Toast.makeText(getContext(), "Distance : " + exitBeacon.getDistance(), Toast.LENGTH_SHORT).show();
+        if (distance < 2) {
+            if (induceSound != null && induceSound.isPlaying()) {
+                induceSound.pause();
+            }
+            arriveSound.start();
+        } else {
+            if (arriveSound != null && arriveSound.isPlaying()) {
+                arriveSound.pause();
+            }
+            speed = (float) (10 / (((distance * distance) / 2) + 5));
+            if (induceSound.isPlaying()) {
+                induceSound.pause();
+                induceSound.setPlaybackParams(induceSound.getPlaybackParams().setSpeed(speed));
+            } else {
+                induceSound.setPlaybackParams(induceSound.getPlaybackParams().setSpeed(speed));
+            }
+            induceSound.start();
+        }
+        Log.d("Beacon", speed + "");
+        Log.d("speed", String.valueOf(speed));
+    }
+
+    @Override
+    public void onBeaconServiceConnect() {
+        beaconManager.setRangeNotifier((beacons, region) -> {
+            if (beacons.size() > 0) {
+                beaconList.clear();
+                for (Beacon beacon : beacons) {
+                    beaconList.add(beacon);
+                    if (beacon.getBluetoothName().equals("IF0126363")) {
+                        exitBeacon = beacon;
+                        //Log.d("Quick", exitBeacon.getBluetoothName());
+                    }
+                }
+            }
+        });
+
+        try {
+            beaconManager.startRangingBeaconsInRegion(new Region("myRangingUniqueId", null, null, null));
+        } catch (RemoteException e) {
+        }
+    }
+
+    @Override
+    public Context getApplicationContext() {
+        return getActivity().getApplicationContext();
+    }
+
+    @Override
+    public void unbindService(ServiceConnection serviceConnection) {
+        getActivity().unbindService(serviceConnection);
+    }
+
+    @Override
+    public boolean bindService(Intent intent, ServiceConnection serviceConnection, int i) {
+        return getActivity().bindService(intent, serviceConnection, i);
     }
 }

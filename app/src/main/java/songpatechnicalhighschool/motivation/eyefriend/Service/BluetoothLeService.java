@@ -42,7 +42,6 @@ import songpatechnicalhighschool.motivation.eyefriend.R;
 //import android.app.Activity;
 //import android.bluetooth.BluetoothGattDescriptor;
 
-
 @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
 public class BluetoothLeService extends Service {
     private final static String TAG = BluetoothLeService.class.getSimpleName();
