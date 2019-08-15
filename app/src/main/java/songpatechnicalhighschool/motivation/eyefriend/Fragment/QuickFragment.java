@@ -61,7 +61,6 @@ import static android.content.Context.BIND_AUTO_CREATE;
 
 public class QuickFragment extends Fragment implements BeaconConsumer {
 
-    Beacon exitBeacon;
 
     final String TAG = "QuickFragment";
     final String OPEN_WEATHER_MAP_KEY = "704a83a5f8f3436366adba0f15c18d38";
@@ -69,6 +68,7 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
 
     private static final int MY_PERMISSION_REQUEST_CONSTANT = 1;
 
+    Beacon exitBeacon;
     private BeaconManager beaconManager;
     private List<Beacon> beaconList = new ArrayList<>();
     private MediaPlayer mediaPlayer;
@@ -132,7 +132,7 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
         super.onCreate(savedInstanceState);
 
         beaconManager = BeaconManager.getInstanceForApplication(getActivity());
-        beaconManager.getBeaconParsers().add(new BeaconParser().setBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24,d:25-25"));
+        beaconManager.getBeaconParsers().add(new BeaconParser().setBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24"));
         beaconManager.bind(this);
 
     }
@@ -454,7 +454,6 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
     }
 
     private void onUltrasonic() {
-        Log.d(TAG, "onKit()");
         if(!ultrasonicState) {
             rfduinoService.send(offUltrasonic);
             ultrasonicState = !ultrasonicState;
@@ -475,7 +474,7 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
     }
 
     private void onEmergencyCall(){
-        startActivity(new Intent("android.intent.action.CALL", Uri.parse("tel:010-2269-1061")));
+        startActivity(new Intent("android.intent.action.CALL", Uri.parse("tel:119")));
     }
 
     //Beacon Connect
@@ -527,7 +526,7 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
                     beaconList.add(beacon);
                     if (beacon.getBluetoothName().equals("IF0126363")) {
                         exitBeacon = beacon;
-                        //Log.d("Quick", exitBeacon.getBluetoothName());
+                        Log.d("Quick", exitBeacon.getBluetoothName());
                     }
                 }
             }

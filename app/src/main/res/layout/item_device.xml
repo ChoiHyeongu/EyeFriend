@@ -12,7 +12,7 @@
         android:layout_height="wrap_content"
         android:textColor="@android:color/black"
         android:textSize="32sp"
-        tools:text="DevcieName" />
+        tools:text="장애인용 화장실" />
 
     <TextView
         android:id="@+id/item_device_locate"
@@ -20,7 +20,7 @@
         android:layout_height="wrap_content"
         android:textColor="@android:color/darker_gray"
         android:textSize="24sp"
-        tools:text="DevcieName" />
+        tools:text="1층 주차고객센터 통로 입구" />
 
 
 </LinearLayout>

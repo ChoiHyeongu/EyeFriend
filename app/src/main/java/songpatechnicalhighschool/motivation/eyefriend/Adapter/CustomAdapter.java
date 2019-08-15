@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import songpatechnicalhighschool.motivation.eyefriend.Activity.InduceActivity;
+import songpatechnicalhighschool.motivation.eyefriend.Fragment.ScanFragment;
 import songpatechnicalhighschool.motivation.eyefriend.R;
 
 public class CustomAdapter extends BaseAdapter {
@@ -58,6 +59,7 @@ public class CustomAdapter extends BaseAdapter {
             return (convertView);
 
         final ViewHolder holder;
+        ScanFragment scanFragment = new ScanFragment();
         LayoutInflater inflater = (LayoutInflater) mContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 
         if (convertView == null) {
@@ -67,17 +69,11 @@ public class CustomAdapter extends BaseAdapter {
             holder.deviceName = convertView.findViewById(R.id.item_device_name);
             holder.locateName = convertView.findViewById(R.id.item_device_locate);
 
-            holder.itemLayout.setOnClickListener(v -> {
-                mac = getMacs(position);
-                Intent intent = new Intent(mContext, InduceActivity.class);
-                intent.putExtra("mac", mac);
-                mContext.startActivity(intent);
-            });
-
             convertView.setTag(holder);
         } else {
             holder = (ViewHolder) convertView.getTag();
         }
+
         holder.deviceName.setText(names.get(position));
         holder.locateName.setText(locates.get(position));
         return convertView;
