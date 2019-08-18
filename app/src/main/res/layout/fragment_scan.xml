@@ -5,39 +5,9 @@
     android:layout_height="match_parent"
     tools:context=".Fragment.ScanFragment">
 
-    <LinearLayout
-        android:orientation="vertical"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-
-        <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-            xmlns:tools="http://schemas.android.com/tools"
-            android:id="@+id/scan_test_btn"
-            android:layout_width="match_parent"
-            android:orientation="vertical"
-            android:layout_height="wrap_content">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textColor="@android:color/black"
-                android:textSize="32sp"
-                tools:text="장애인용 화장실" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textColor="@android:color/darker_gray"
-                android:textSize="24sp"
-                tools:text="1층 주차고객센터 통로 입구" />
-
-
-        </LinearLayout>
     <ListView
         android:id="@+id/scan_device_list"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"/>
-
-    </LinearLayout>
 
 </FrameLayout>

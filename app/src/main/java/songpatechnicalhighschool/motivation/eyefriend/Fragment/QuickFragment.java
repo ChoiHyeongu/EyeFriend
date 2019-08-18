@@ -67,8 +67,11 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
     final String emergencyTell = "tel:119";
 
     private static final int MY_PERMISSION_REQUEST_CONSTANT = 1;
+    Location location;
 
-    Beacon exitBeacon;
+    Beacon exitBeacon1;
+    Beacon exitBeacon2;
+    private int course = 1;
     private BeaconManager beaconManager;
     private List<Beacon> beaconList = new ArrayList<>();
     private MediaPlayer mediaPlayer;
@@ -135,16 +138,18 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
         beaconManager.getBeaconParsers().add(new BeaconParser().setBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24"));
         beaconManager.bind(this);
 
+        LocationManager locationManager = (LocationManager) getContext().getSystemService(Context.LOCATION_SERVICE);
+        String locationProvider = LocationManager.NETWORK_PROVIDER;
+        if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        location = locationManager.getLastKnownLocation(locationProvider);
     }
 
     @Override
     public void onStart() {
         super.onStart();
-        IntentFilter ifi = new IntentFilter("be.hcpl.android.beaconexample.NOTIFY_FOR_BEACON");
-        ifi.setPriority(10);
-        getActivity().registerReceiver(mReceiver, ifi);
-        getContext().registerReceiver(bluetoothStateReceiver, new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED));
-        getContext().registerReceiver(rfduinoReceiver, RFduinoService.getIntentFilter());
+        connectRF();
     }
 
     @Override
@@ -155,14 +160,19 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
         getContext().unregisterReceiver(rfduinoReceiver);
     }
 
+    @Override
+    public void onPause() {
+        super.onPause();
+    }
+
     private final BroadcastReceiver bluetoothStateReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, 0);
             if (state == BluetoothAdapter.STATE_ON) {
-                Toast.makeText(context, "Disconnected", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, "bluetoothStateReceiver Disconnected", Toast.LENGTH_SHORT).show();
             } else if (state == BluetoothAdapter.STATE_OFF) {
-                Toast.makeText(context, "Connected", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, "bluetoothStateReceiver Connected", Toast.LENGTH_SHORT).show();
             }
         }
     };
@@ -174,7 +184,7 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
             rfduinoService = ((RFduinoService.LocalBinder) service).getService();
             if (rfduinoService.initialize()) {
                 if (rfduinoService.connect("C3:69:48:21:36:C8")) {
-                    Toast.makeText(getContext(), "Connected", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getContext(), "rfduinoServiceConnection", Toast.LENGTH_SHORT).show();
                 }
             }
         }
@@ -192,9 +202,9 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
             Log.d(TAG, "rfduinoReceiver");
             final String action = intent.getAction();
             if (RFduinoService.ACTION_CONNECTED.equals(action)) {
-                Toast.makeText(context, "Connected", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, "rfduinoReceiver Connected", Toast.LENGTH_SHORT).show();
             } else if (RFduinoService.ACTION_DISCONNECTED.equals(action)) {
-                Toast.makeText(context, "Disconnected", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, "rfduinoReceiver Disconnected", Toast.LENGTH_SHORT).show();
             } else if (RFduinoService.ACTION_DATA_AVAILABLE.equals(action)) {
                 addData(intent.getByteArrayExtra(RFduinoService.EXTRA_DATA));
             }
@@ -205,7 +215,6 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_quick, container, false);
-
         weatherService = new WeatherService();
         intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         intent.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, getContext().getPackageName());
@@ -242,6 +251,7 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
         //Voice
         voiceButton = view.findViewById(R.id.quick_voice);
         voiceButton.setOnClickListener(v -> {
+            tts.speak("음성인식을 눌렀습니다.", TextToSpeech.QUEUE_FLUSH, null);
             if (ContextCompat.checkSelfPermission(getContext(), Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.RECORD_AUDIO}, 100);
             } else {
@@ -255,7 +265,8 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
 
         //119
         emergencyButton = view.findViewById(R.id.quick_emergency);
-        emergencyButton.setOnClickListener(v -> startActivity(new Intent("android.intent.action.CALL", Uri.parse(emergencyTell))));;
+        emergencyButton.setOnClickListener(v -> startActivity(new Intent("android.intent.action.CALL", Uri.parse(emergencyTell))));
+        ;
 
         //Ultrasonic
         ultrasonicButton = view.findViewById(R.id.quick_ultrasonic);
@@ -267,7 +278,7 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
 
         //Emergency
         emergencyButton = view.findViewById(R.id.quick_emergency);
-        emergencyButton.setOnClickListener(v->onEmergencyCall());
+        emergencyButton.setOnClickListener(v -> onEmergencyCall());
 
         //Exit
         onExitButton = view.findViewById(R.id.quick_exit);
@@ -327,7 +338,6 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
             speakingValue = mResult.toString();
             speakingValue = speakingValue.substring(1, speakingValue.length() - 1);
             if (speakingValue.equals("오늘 날씨")) {
-                Location location = getLocation();
                 getCurrentWeather(Double.toString(location.getLatitude()), Double.toString(location.getLongitude()));
             } else if(speakingValue.equals("센서")){
                 onUltrasonic();
@@ -397,10 +407,7 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
         }
 
         beaconManager.unbind(this);
-        if (mediaPlayer.isPlaying()) {
-            mediaPlayer.stop();
-        }
-        mediaPlayer.release();
+        //mediaPlayer.release();
     }
 
     private Location getLocation() {
@@ -447,8 +454,10 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
         if(!sosState) {
             rfduinoService.send(offSOS);
             sosState = !sosState;
+            tts.speak( "SOS 알람을 껐습니다.", TextToSpeech.QUEUE_FLUSH, null);
         } else {
             rfduinoService.send(onSOS);
+            tts.speak( "SOS 알람을 켰습니다.", TextToSpeech.QUEUE_FLUSH, null);
             sosState = !sosState;
         }
     }
@@ -457,9 +466,11 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
         if(!ultrasonicState) {
             rfduinoService.send(offUltrasonic);
             ultrasonicState = !ultrasonicState;
+            tts.speak( "초음파센서를 껐습니다.", TextToSpeech.QUEUE_FLUSH, null);
         } else {
             rfduinoService.send(onUltrasonic);
             ultrasonicState = !ultrasonicState;
+            tts.speak( "초음파센서를 켰습니다.", TextToSpeech.QUEUE_FLUSH, null);
         }
     }
 
@@ -467,13 +478,17 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
         if(!pirState) {
             rfduinoService.send(offPIR);
             pirState = !pirState;
+            tts.speak( "방범센서를 껐습니다.", TextToSpeech.QUEUE_FLUSH, null);
         } else {
             rfduinoService.send(onPIR);
             pirState = !pirState;
+            tts.setSpeechRate(0.8f); //1배속으로 읽기
+            tts.speak( "방범센서를 켰습니다. ", TextToSpeech.QUEUE_FLUSH, null);
         }
     }
 
     private void onEmergencyCall(){
+        //tts.speak( "119 전화를 클릭했습니다. ", TextToSpeech.QUEUE_FLUSH, null);
         startActivity(new Intent("android.intent.action.CALL", Uri.parse("tel:119")));
     }
 
@@ -481,23 +496,31 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
     @SuppressLint("HandlerLeak")
     Handler handler = new Handler() {
         public void handleMessage(Message msg) {
-            if(exitBeacon == null){
-                Log.d("Beacon", "NULL");
-            }
-            if (exitBeacon != null || exitBeacon.getBluetoothName().equals("IF0126363")) {
-                String text = ("ID : " + exitBeacon.getId2() + " / " + "Distance = " + exitBeacon.getDistance());
+            //state
+            if (exitBeacon1 != null || exitBeacon1.getBluetoothName().equals("IF0126363")) {
+                String text = ("ID : " + exitBeacon1.getId2() + " / " + "Distance = " + exitBeacon1.getDistance());
                 Log.d("Beacon", text);
-                soundPlay(exitBeacon.getDistance());
+                if(course == 1){
+                    soundPlay(exitBeacon1.getDistance());
+                    Log.d("NowCourse", exitBeacon1.getBluetoothName());
+                } else if(course == 2) {
+                    soundPlay(exitBeacon2.getDistance());
+                    Log.d("NowCourse", exitBeacon2.getBluetoothName());
+                }
                 handler.sendEmptyMessageDelayed(0, 1500);
             }
         }
     };
 
     void soundPlay(Double distance) {
-        Toast.makeText(getContext(), "Distance : " + exitBeacon.getDistance(), Toast.LENGTH_SHORT).show();
-        if (distance < 2) {
+
+        if (distance < 3) {
             if (induceSound != null && induceSound.isPlaying()) {
                 induceSound.pause();
+                if(course == 1){
+                    course++;
+                    Log.d("Course", "Course++"+course);
+                }
             }
             arriveSound.start();
         } else {
@@ -513,7 +536,7 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
             }
             induceSound.start();
         }
-        Log.d("Beacon", speed + "");
+        Log.d("distance", distance.toString());
         Log.d("speed", String.valueOf(speed));
     }
 
@@ -525,8 +548,13 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
                 for (Beacon beacon : beacons) {
                     beaconList.add(beacon);
                     if (beacon.getBluetoothName().equals("IF0126363")) {
-                        exitBeacon = beacon;
-                        Log.d("Quick", exitBeacon.getBluetoothName());
+                        exitBeacon1 = beacon;
+                        Log.d("ScanBeacon", exitBeacon1.getBluetoothName());
+                    }
+
+                    if (beacon.getBluetoothName().equals("MiniBeacon_26192")) {
+                        exitBeacon2 = beacon;
+                        Log.d("ScanBeacon", exitBeacon2.getBluetoothName());
                     }
                 }
             }
@@ -551,5 +579,13 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
     @Override
     public boolean bindService(Intent intent, ServiceConnection serviceConnection, int i) {
         return getActivity().bindService(intent, serviceConnection, i);
+    }
+
+    private void connectRF(){
+        IntentFilter ifi = new IntentFilter("be.hcpl.android.beaconexample.NOTIFY_FOR_BEACON");
+        ifi.setPriority(10);
+        getActivity().registerReceiver(mReceiver, ifi);
+        getContext().registerReceiver(bluetoothStateReceiver, new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED));
+        getContext().registerReceiver(rfduinoReceiver, RFduinoService.getIntentFilter());
     }
 }
