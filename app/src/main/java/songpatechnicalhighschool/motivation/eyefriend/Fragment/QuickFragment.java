@@ -251,7 +251,6 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
         //Voice
         voiceButton = view.findViewById(R.id.quick_voice);
         voiceButton.setOnClickListener(v -> {
-            tts.speak("음성인식을 눌렀습니다.", TextToSpeech.QUEUE_FLUSH, null);
             if (ContextCompat.checkSelfPermission(getContext(), Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.RECORD_AUDIO}, 100);
             } else {
@@ -514,7 +513,7 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
 
     void soundPlay(Double distance) {
 
-        if (distance < 3) {
+        if (distance < 4) {
             if (induceSound != null && induceSound.isPlaying()) {
                 induceSound.pause();
                 if(course == 1){
@@ -527,7 +526,7 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
             if (arriveSound != null && arriveSound.isPlaying()) {
                 arriveSound.pause();
             }
-            speed = (float) (10 / (((distance * distance) / 2) + 5));
+            speed = (float) (17 / (((distance * distance) / 2) + 5));
             if (induceSound.isPlaying()) {
                 induceSound.pause();
                 induceSound.setPlaybackParams(induceSound.getPlaybackParams().setSpeed(speed));
@@ -538,6 +537,7 @@ public class QuickFragment extends Fragment implements BeaconConsumer {
         }
         Log.d("distance", distance.toString());
         Log.d("speed", String.valueOf(speed));
+        Toast.makeText(getContext(), "Distance : " + distance + " Speed" + speed, Toast.LENGTH_LONG).show();
     }
 
     @Override
